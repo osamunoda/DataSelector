@@ -1,0 +1,181 @@
+Let(
+code = "<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport'
+          content='width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0'>
+    <meta http-equiv='X-UA-Compatible' content='ie=edge'>
+    <title>Data Source Selector</title>
+    <style>
+        :root{
+            --select-color:pink;
+        }
+        *{margin:0; padding:0; box-sizing:border-box;font:16px sans-serif}
+        body{
+            display:flex;
+            flex-direction:column;
+            overflow:hidden;
+        }
+        header{
+            height:40px;
+            display:flex;
+            background:#eee;
+        }
+        header>div{
+            width:150px;
+            border:1px solid #ccc;
+            display:flex;
+            justify-content: center;
+            align-items: center;
+            font:24px sans-serif;
+        }
+        header>div:last-of-type{
+            flex:1;
+        }
+        div.main{
+            display:flex;
+            flex:1;
+            position:relative;
+            width:100vw;
+            height:calc(100vh - 40px);
+            overflow:hidden;
+        }
+        ul{
+            list-style: none;
+            width:150px;
+            border:1px solid #ccc;
+            height:100%;
+            overflow-y:auto;
+        }
+        li{
+            padding:5px;
+            border:1px solid #ccc;
+            height:36px;
+        }
+        #data{
+            flex:1;
+        }
+        #data>li{
+            background:var(--select-color)
+        }
+        .selected{
+            background:var(--select-color)
+        }
+        .label{
+
+        }
+        .main{
+
+        }
+        .fieldOffset{
+            transform:translateY(1000px);
+
+        }
+        .scroll::-webkit-scrollbar{width:0px}
+    </style>
+</head>
+<body>
+<header>
+    <div class='label'>TO</div><div class='label'>Field</div><div class='label'>Values</div>
+</header>
+<div class='main'>
+    <ul id='TOs' class='scroll'></ul>
+    <ul id='Fields' class='scroll'></ul>
+    <ul id='data' draggable='true'></ul>
+</div>
+<script type='text/javascript'>
+    (function () {
+        const SELECTOR_SCRIPT = '__SELECTORSCRIPT__';
+        const TO_list = document.getElementById('TOs');
+        const field_list = document.getElementById('Fields');
+        const data_list = document.getElementById('data');
+        const selectedTO = '__SELECTED_TO__'.split(',') || [];
+        const selectedFields = '__SELECTED_FIELDS__'.split('___');
+        const isNewTO = selectedFields[0]?false:true;
+        /* TO column */
+        const TO_names=`__TABLES__`.split('\n');
+        list_element(TO_list, TO_names, 'li', function(){
+            fmp_script(SELECTOR_SCRIPT, this.innerText)}, selectedTO);
+        TO_list.scrollTo(0, __SCROLL1__);
+        /* FIELD column */
+        const field_infos = `__FIELDS__`.split('\n');
+        if(field_infos[0] === `__FIELDS__`) {
+            return;
+        }
+        const field_names = field_infos.map(item => {
+            return item.split(',')[1];
+        });
+        list_element(field_list, field_names, 'li', function(e)  {
+            this.classList.toggle('selected');
+            const selectedFieldsArr = Array.from(field_list.querySelectorAll('.selected'));
+            const items = [];
+            selectedFieldsArr.forEach(item => {
+                items.push(item.innerText);
+            });
+            fmp_script(SELECTOR_SCRIPT, selectedTO[0] ,items.join('___'))
+        },selectedFields, 'fieldOffset');
+
+        const targetElms = Array.from(document.querySelectorAll('.fieldOffset'));
+        targetElms.forEach((elm, index) => {
+            elm.style.transition = selectedFields[0]?'0s':'0.5s';
+
+            elm.style['transition-delay'] = selectedFields[0]?'0s':(0.1*index + 's');
+            setTimeout(function(){
+                elm.classList.remove('fieldOffset');
+            },0);
+        });
+        if(!isNewTO){
+            field_list.scrollTo(0,__SCROLL2__);
+        }
+        /* RESULT column */
+        const result = `__RESULT__`.split('\n');
+        if(result[0] === `__RESULT__`) {
+            return;
+        }
+        list_element(data_list, result, 'li',  () => {});
+        /* drag data */
+        data_list.ondragstart = function(e){
+            e.dataTransfer.setData('text', result.join('\n'));
+        };
+
+
+        function list_element(parentElm, dataSourceArray, elementName, handler, selectedTO, effect){
+            dataSourceArray.forEach(function(item){
+                const elm = document.createElement(elementName);
+                elm.innerText = item;
+                if(effect){
+                    elm.classList.add(effect);
+                }
+                if(selectedTO && selectedTO.indexOf(item)!=-1){
+                    elm.classList.toggle('selected');
+                }
+                parentElm.appendChild(elm);
+                elm.onclick = handler;
+            });
+        }
+        function fmp_script(scriptName, param, selectedFields){
+            location.href = 'fmp://__HOST__/__DB__?script='+scriptName + '&param=' + (param || '') + '&$selectedFields=' + (selectedFields||'')  + '&$scroll1=' + TO_list.scrollTop + '&$scroll2=' + (isNewTO?0:field_list.scrollTop);
+        }
+
+
+    })();
+
+</script>
+</body>
+</html>
+
+";
+Substitute ( code;
+["__HOST__"; If(IsEmpty(Get(HostIPAddress)); "$" ; Get(HostIPAddress))];
+["__DB__"; Get(FileName)];
+["__TABLES__"; ExecuteSQL ( "SELECT TableName FROM FileMaker_Tables"; ""; Char(10) )];
+["__FIELDS__";$fields];
+["__SELECTORSCRIPT__";"dataSourceSelector"];
+["__SELECTED_TO__"; Get(ScriptParameter)];
+["__SELECTED_FIELDS__";$selectedFields];
+["__RESULT__"; $items] ;
+["__SCROLL1__"; If(IsEmpty($scroll1); 0; $scroll1)];
+["__SCROLL2__"; If(IsEmpty($scroll2);0;$scroll2)];
+[";"; ";" & Char(10)])
+)
