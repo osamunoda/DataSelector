@@ -52,6 +52,7 @@ code = "<!DOCTYPE html>
             padding:5px;
             border:1px solid #ccc;
             height:36px;
+            overflow:hidden;
         }
         #data{
             flex:1;
@@ -91,7 +92,8 @@ code = "<!DOCTYPE html>
         const field_list = document.getElementById('Fields');
         const data_list = document.getElementById('data');
         const selectedTO = '__SELECTED_TO__'.split(',') || [];
-        const selectedFields = '__SELECTED_FIELDS__'.split('___');
+        const selectedFields = '__SELECTED_FIELDS__'?'__SELECTED_FIELDS__'.split('___'):[];
+        let newitems;
         const isNewTO = selectedFields[0]?false:true;
         /* TO column */
         const TO_names=`__TABLES__`.split('\n');
@@ -107,13 +109,17 @@ code = "<!DOCTYPE html>
             return item.split(',')[1];
         });
         list_element(field_list, field_names, 'li', function(e)  {
-            this.classList.toggle('selected');
-            const selectedFieldsArr = Array.from(field_list.querySelectorAll('.selected'));
-            const items = [];
-            selectedFieldsArr.forEach(item => {
-                items.push(item.innerText);
-            });
-            fmp_script(SELECTOR_SCRIPT, selectedTO[0] ,items.join('___'))
+            if(this.classList.contains('selected')){
+                this.classList.remove('selected');
+                const nameToDelete=this.innerText;
+                newitems=selectedFields.filter(function(item){
+                    return item!=nameToDelete;
+                });
+            }else{
+                newitems = selectedFields.length? Array.prototype.concat(selectedFields, [this.innerText]):[this.innerText];
+                this.classList.add('selected');
+            }
+            fmp_script(SELECTOR_SCRIPT, selectedTO[0] ,newitems.join('___'))
         },selectedFields, 'fieldOffset');
 
         const targetElms = Array.from(document.querySelectorAll('.fieldOffset'));
